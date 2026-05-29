@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import MQTTService from "./src/services/mqttService";
+import { saveToHistory } from "./src/services/historyService";
 import StatusModal from "./src/components/StatusModal";
 import LightControl from "./src/components/LightControl";
 import Gauges from "./src/components/Gauges";
+import HistoryScreen from "./src/components/HistoryScreen";
 
 const mqtt = new MQTTService();
 
@@ -13,6 +16,7 @@ export default function App() {
   const [isLightOn, setIsLightOn] = useState(false);
   const [temp, setTemp] = useState(0);
   const [hum, setHum] = useState(0);
+  const [showHistory, setShowHistory] = useState(false); // navegação simples
 
   const mqttConfig = {
     host: process.env.EXPO_PUBLIC_MQTT_HOST,
@@ -31,10 +35,14 @@ export default function App() {
     setShowError(false);
     mqtt.connect(
       mqttConfig,
-      (topic, message) => {
+      async (topic, message) => {
+        // Atualiza estado em tempo real
         if (topic === 'casa/temp') setTemp(parseFloat(message));
-        if (topic === 'casa/hum') setHum(parseFloat(message));
-        if (topic === 'casa/luz') setIsLightOn(message === '1');
+        if (topic === 'casa/hum')  setHum(parseFloat(message));
+        if (topic === 'casa/luz')  setIsLightOn(message === '1');
+
+        // Persiste no histórico local
+        await saveToHistory(topic, message);
       },
       () => {
         setIsConnected(true);
@@ -54,30 +62,82 @@ export default function App() {
     mqtt.publish('casa/luz', newState);
   };
 
+  // Exibe a tela de histórico
+  if (showHistory) {
+    return <HistoryScreen onBack={() => setShowHistory(false)} />;
+  }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Smart Home IoT</Text>
+      {/* Header com botão de histórico */}
+      <View style={styles.headerRow}>
+        <Text style={styles.header}>Smart Home IoT</Text>
+        <TouchableOpacity
+          onPress={() => setShowHistory(true)}
+          style={styles.historyBtn}
+        >
+          <Icon name="history" size={26} color="#3498db" />
+        </TouchableOpacity>
+      </View>
 
-      <LightControl isLightOn={isLightOn} onToggle={toggleLight}/>
+      {/* Indicador de conexão */}
+      <View style={styles.statusRow}>
+        <View style={[styles.dot, { backgroundColor: isConnected ? '#27ae60' : '#e74c3c' }]} />
+        <Text style={styles.statusText}>
+          {isConnected ? 'Conectado ao broker' : 'Desconectado'}
+        </Text>
+      </View>
 
-      <Gauges temp={temp} hum={hum}/>
+      <LightControl isLightOn={isLightOn} onToggle={toggleLight} />
 
-      {/* Componente de Status de Conexão */}
+      <Gauges temp={temp} hum={hum} />
+
       <StatusModal
-      visible={showError}
-      onRetry={startConnection}
-      onLater={() => setShowError(false)}
+        visible={showError}
+        onRetry={startConnection}
+        onLater={() => setShowError(false)}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212',
-    padding: 20, alignItems: 'center'
-   },
-   header: { color: '#fff', fontSize: 24, 
-    fontWeight: 'bold', marginTop: 40, 
-    marginBottom: 20 
+  container: {
+    flex: 1,
+    backgroundColor: '#121212',
+    padding: 20,
+    alignItems: 'center',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 40,
+    marginBottom: 8,
+  },
+  header: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  historyBtn: {
+    padding: 6,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    alignSelf: 'flex-start',
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  statusText: {
+    color: '#666',
+    fontSize: 12,
   },
 });
