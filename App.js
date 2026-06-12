@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import MQTTService from "./src/services/mqttService";
-import { saveToHistory } from "./src/services/historyService";
+import { saveToHistory, loadLastValues } from "./src/services/historyService";
 import StatusModal from "./src/components/StatusModal";
 import LightControl from "./src/components/LightControl";
 import Gauges from "./src/components/Gauges";
@@ -28,6 +28,14 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Carrega os últimos valores salvos antes de conectar ao broker,
+    // evitando que a tela inicie com tudo zerado
+    loadLastValues().then(({ temp, hum, luz }) => {
+      setTemp(temp);
+      setHum(hum);
+      setIsLightOn(luz === '1');
+    });
+
     startConnection();
   }, []);
 

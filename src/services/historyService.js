@@ -43,6 +43,42 @@ export async function loadHistory() {
     }
 }
 
+/**
+ * Retorna o último valor registrado de cada tópico.
+ * Percorre o histórico (já ordenado do mais recente ao mais antigo)
+ * e para assim que encontrar um registro de cada tópico.
+ * @returns {Promise<{ temp: number, hum: number, luz: string }>}
+ */
+export async function loadLastValues() {
+    const defaults = { temp: 0, hum: 0, luz: '0' };
+    try {
+        const history = await loadHistory();
+        const result = { ...defaults };
+        const found = { temp: false, hum: false, luz: false };
+
+        for (const entry of history) {
+            if (entry.topic === 'casa/temp' && !found.temp) {
+                result.temp = parseFloat(entry.value);
+                found.temp = true;
+            }
+            if (entry.topic === 'casa/hum' && !found.hum) {
+                result.hum = parseFloat(entry.value);
+                found.hum = true;
+            }
+            if (entry.topic === 'casa/luz' && !found.luz) {
+                result.luz = entry.value;
+                found.luz = true;
+            }
+            if (found.temp && found.hum && found.luz) break;
+        }
+
+        return result;
+    } catch (e) {
+        console.warn('historyService.loadLastValues error:', e);
+        return defaults;
+    }
+}
+
 export async function clearHistory() {
     try {
         await AsyncStorage.removeItem(HISTORY_KEY);
