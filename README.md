@@ -162,6 +162,14 @@ A tela de dashboard é acessada pelo ícone de gráfico no cabeçalho da tela pr
 
 ---
 
+## 📽 Vídeo Explicativo
+
+Link para a demonstração visual das funcionalidades da aplicação:
+
+https://drive.google.com/file/d/1dS-WA8s5vxJ_jwdUNNDnwj4WDUKntM7X/view?usp=sharing
+
+---
+
 ## 📌 Considerações Finais
 
 - O broker HiveMQ Cloud utilizado é o plano gratuito, adequado para fins de **desenvolvimento e estudo**.
