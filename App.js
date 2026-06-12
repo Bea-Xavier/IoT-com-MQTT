@@ -7,6 +7,7 @@ import StatusModal from "./src/components/StatusModal";
 import LightControl from "./src/components/LightControl";
 import Gauges from "./src/components/Gauges";
 import HistoryScreen from "./src/components/HistoryScreen";
+import DashboardScreen from "./src/components/DashboardScreen";
 
 const mqtt = new MQTTService();
 
@@ -16,7 +17,8 @@ export default function App() {
   const [isLightOn, setIsLightOn] = useState(false);
   const [temp, setTemp] = useState(0);
   const [hum, setHum] = useState(0);
-  const [showHistory, setShowHistory] = useState(false); // navegação simples
+  const [showHistory, setShowHistory] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   const mqttConfig = {
     host: process.env.EXPO_PUBLIC_MQTT_HOST,
@@ -70,6 +72,10 @@ export default function App() {
     mqtt.publish('casa/luz', newState);
   };
 
+  if (showDashboard) {
+    return <DashboardScreen onBack={() => setShowDashboard(false)} />;
+  }
+
   // Exibe a tela de histórico
   if (showHistory) {
     return <HistoryScreen onBack={() => setShowHistory(false)} />;
@@ -80,6 +86,12 @@ export default function App() {
       {/* Header com botão de histórico */}
       <View style={styles.headerRow}>
         <Text style={styles.header}>Smart Home IoT</Text>
+        <TouchableOpacity
+          onPress={() => setShowDashboard(true)}
+          style={styles.historyBtn}
+        >
+          <Icon name="chart-line" size={26} color="#27ae60" />
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setShowHistory(true)}
           style={styles.historyBtn}
