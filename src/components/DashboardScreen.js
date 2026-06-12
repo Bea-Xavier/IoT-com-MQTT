@@ -5,22 +5,16 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { loadHistory } from '../services/historyService';
-
-// react-native-chart-kit para gráficos nativos no RN/Expo
-// npm install react-native-chart-kit react-native-svg
-import { LineChart, BarChart } from 'react-native-chart-kit';
+import { LineChart } from 'react-native-chart-kit';
 
 const SCREEN_W = Dimensions.get('window').width;
-const CHART_W  = SCREEN_W - 48; // padding horizontal da tela
+const CHART_W  = SCREEN_W - 48; 
 
-// ─── helpers ────────────────────────────────────────────────
 function fmtTime(iso) {
     const d = new Date(iso);
     return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 
-// Reduz o array para no máximo `max` pontos igualmente espaçados
-// para não poluir o eixo X com labels demais
 function downsample(arr, max = 8) {
     if (arr.length <= max) return arr;
     const step = Math.ceil(arr.length / max);
@@ -35,7 +29,6 @@ function calcStats(values) {
     return { min, max, avg };
 }
 
-// ─── config visual dos gráficos ─────────────────────────────
 function chartConfig(color) {
     return {
         backgroundGradientFrom: '#1e1e1e',
@@ -48,7 +41,90 @@ function chartConfig(color) {
     };
 }
 
-// ─── card de métrica ─────────────────────────────────────────
+function LightTimeline({ events }) {
+    if (!events.length) return null;
+
+    const total = events.length;
+
+    return (
+        <View>
+            {/* Barra de blocos coloridos */}
+            <View style={tlStyles.bar}>
+                {events.map((ev, i) => {
+                    const on = ev.value === '1';
+                    return (
+                        <View
+                            key={ev.id}
+                            style={[
+                                tlStyles.segment,
+                                { backgroundColor: on ? '#F1C40F' : '#2a2a2a',
+                                  borderColor: on ? '#c9a200' : '#444' }
+                            ]}
+                        />
+                    );
+                })}
+            </View>
+
+            {/* Lista de eventos abaixo da barra */}
+            <View style={tlStyles.eventList}>
+                {events.map((ev) => {
+                    const on = ev.value === '1';
+                    return (
+                        <View key={ev.id} style={tlStyles.eventRow}>
+                            <View style={[tlStyles.dot, { backgroundColor: on ? '#F1C40F' : '#555' }]} />
+                            <Text style={[tlStyles.eventLabel, { color: on ? '#F1C40F' : '#888' }]}>
+                                {on ? 'Ligada' : 'Desligada'}
+                            </Text>
+                            <Text style={tlStyles.eventTime}>{fmtTime(ev.timestamp)}</Text>
+                        </View>
+                    );
+                })}
+            </View>
+        </View>
+    );
+}
+
+const tlStyles = StyleSheet.create({
+    bar: {
+        flexDirection: 'row',
+        height: 28,
+        borderRadius: 8,
+        overflow: 'hidden',
+        marginBottom: 12,
+        gap: 2,
+    },
+    segment: {
+        flex: 1,
+        borderRadius: 4,
+        borderWidth: 1,
+    },
+    eventList: {
+        gap: 6,
+    },
+    eventRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingVertical: 4,
+        borderBottomWidth: 0.5,
+        borderBottomColor: '#222',
+    },
+    dot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    eventLabel: {
+        flex: 1,
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    eventTime: {
+        fontSize: 12,
+        color: '#555',
+    },
+});
+
 function MetricCard({ label, value, sub, color }) {
     return (
         <View style={styles.metricCard}>
@@ -59,7 +135,6 @@ function MetricCard({ label, value, sub, color }) {
     );
 }
 
-// ─── componente principal ────────────────────────────────────
 export default function DashboardScreen({ onBack }) {
     const [loading, setLoading] = useState(true);
     const [tempSeries, setTempSeries] = useState([]);
@@ -79,11 +154,9 @@ export default function DashboardScreen({ onBack }) {
         // Reduz para no máximo 10 pontos por gráfico
         const tempSampled = downsample(tempRaw, 10);
         const humSampled  = downsample(humRaw, 10);
-        const luzSampled  = downsample(luzRaw, 10);
-
         setTempSeries(tempSampled);
         setHumSeries(humSampled);
-        setLuzSeries(luzSampled);
+        setLuzSeries(luzRaw);
 
         // Estatísticas usando todos os dados, não só a amostra
         const tempVals = tempRaw.map(e => parseFloat(e.value));
@@ -102,10 +175,8 @@ export default function DashboardScreen({ onBack }) {
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    // ── sem dados suficientes ──────────────────────────────
     const empty = !loading && !tempSeries.length && !humSeries.length && !luzSeries.length;
 
-    // ── dados para os gráficos Chart.js-style (react-native-chart-kit) ──
     const tempChartData = tempSeries.length
         ? { labels: tempSeries.map(e => fmtTime(e.timestamp)), datasets: [{ data: tempSeries.map(e => parseFloat(e.value)) }] }
         : null;
@@ -114,10 +185,6 @@ export default function DashboardScreen({ onBack }) {
         ? { labels: humSeries.map(e => fmtTime(e.timestamp)), datasets: [{ data: humSeries.map(e => parseFloat(e.value)) }] }
         : null;
 
-    // Luz: barra com 1=ligada, 0=desligada
-    const luzChartData = luzSeries.length
-        ? { labels: luzSeries.map(e => fmtTime(e.timestamp)), datasets: [{ data: luzSeries.map(e => parseFloat(e.value)) }] }
-        : null;
 
     return (
         <View style={styles.container}>
@@ -167,8 +234,8 @@ export default function DashboardScreen({ onBack }) {
                         />
                     </View>
 
-                    {/* ── Gráfico: Lâmpada ──────────────────── */}
-                    {luzChartData && (
+                    {/* ── Timeline: Lâmpada ──────────────────── */}
+                    {luzSeries.length > 0 && (
                         <View style={styles.chartBlock}>
                             <View style={styles.chartHeader}>
                                 <Icon name="lightbulb-on" size={16} color="#F1C40F" />
@@ -176,21 +243,11 @@ export default function DashboardScreen({ onBack }) {
                             </View>
                             <View style={styles.legend}>
                                 <View style={[styles.legendDot, { backgroundColor: '#F1C40F' }]} />
-                                <Text style={styles.legendText}>1 = ligada · 0 = desligada</Text>
+                                <Text style={styles.legendText}>Ligada</Text>
+                                <View style={[styles.legendDot, { backgroundColor: '#333', marginLeft: 8 }]} />
+                                <Text style={styles.legendText}>Desligada</Text>
                             </View>
-                            <BarChart
-                                data={luzChartData}
-                                width={CHART_W}
-                                height={160}
-                                chartConfig={{
-                                    ...chartConfig('#F1C40F'),
-                                    decimalPlaces: 0,
-                                }}
-                                fromZero
-                                showValuesOnTopOfBars={false}
-                                withInnerLines={false}
-                                style={styles.chart}
-                            />
+                            <LightTimeline events={luzSeries} />
                         </View>
                     )}
 
